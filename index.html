@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MOSES">
-<title>MOSES v107200</title>
+<title>MOSES v107300</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -53,8 +53,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 .topbar{position:relative;flex:none;padding:12px 14px 6px;min-height:100px}
 .glass{width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:var(--card);box-shadow:0 8px 22px rgba(42,33,80,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
 #menuBtn{position:absolute;left:14px;top:12px;z-index:6}
-#word{text-align:center;font-weight:650;font-size:30px;letter-spacing:.01em;color:var(--word);padding:6px 60px 0;min-height:42px}
-#sub{text-align:center;color:var(--soft);font-size:15px;min-height:20px}
+#word{text-align:center;font-weight:650;font-size:30px;line-height:1.2;letter-spacing:.01em;color:var(--word);padding:6px 60px 0;min-height:78px}
+#sub{text-align:center;color:var(--soft);font-size:15px;line-height:1.3;min-height:40px}
 #roleTag{text-align:center;color:var(--blue);font-size:13px;letter-spacing:.12em;text-transform:uppercase;min-height:18px;margin-top:2px}
 #map{flex:1;min-height:0;z-index:0}
 .mk{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:14px;background:#fff;border:1.5px solid #bdb8cf;font:700 15px -apple-system,Helvetica,Arial,sans-serif;box-shadow:0 2px 8px rgba(42,33,80,.25)}
@@ -98,6 +98,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 #tripList .trip b{display:block;margin-bottom:2px}
 #tripList .none{color:var(--soft);padding:8px 0}
 .tripnote{font-size:13px;color:var(--soft)}
+#ambBar{display:flex;flex-direction:column;align-items:center;gap:2px;width:100%}
+.bigbtn{width:340px;max-width:82vw;min-height:64px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-family:inherit;font-weight:700;font-size:21px;cursor:pointer}
+.bigbtn.primary{background:#1B64D6;border-color:#1B64D6;color:#fff}
+.linkbtn{min-height:36px;padding:0 18px;border:0;background:none;color:var(--soft);font-family:inherit;font-weight:600;font-size:15px;cursor:pointer}
+.ghost{visibility:hidden}
+.soft-tiles{filter:grayscale(1) contrast(.9);opacity:.55}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .soft-tiles{filter:grayscale(1) invert(1) contrast(.8);opacity:.35}}
+:root[data-theme="dark"] .soft-tiles{filter:grayscale(1) invert(1) contrast(.8);opacity:.35}
 </style>
 </head>
 <body data-role="none">
@@ -120,7 +128,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 </div>
 <div id="map"></div>
 <div class="bottombar">
-<div class="row" id="ambBar" hidden><button class="pill" id="callBtn">Call</button><button class="pill" id="randBtn">Random patient</button><button class="pill primary" id="goBtn" disabled>Go</button><button class="pill" id="endBtn" hidden>End</button></div>
+<div id="ambBar" hidden><button class="bigbtn primary" id="callBtn">New call</button><button class="bigbtn primary" id="goBtn" hidden>Go</button><button class="bigbtn" id="endBtn" hidden>End</button><button class="linkbtn ghost" id="cancelBtn">Cancel</button></div>
 <div id="drvBar" hidden><div class="row" id="laneBtns"><button class="pill" data-l="L">Left</button><button class="pill" data-l="M">Middle</button><button class="pill" data-l="R">Right</button><button class="pill on" data-l="auto">Not set</button></div><div id="laneNow"></div></div>
 <div class="brand foot">MOSES</div>
 <div id="ver" class="verline"><span class="vnum"></span> · Built with Claude</div>
@@ -277,7 +285,7 @@ return {bearing:bearing,dist:dist,xy:xy,fromXY:fromXY,cumulative:cumulative,proj
 <script>
 // ===== MOSES app: screens, map, GPS, the live link =====
 (function(){
-var APP_VERSION='v107200';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
+var APP_VERSION='v107300';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
 var $=function(id){return document.getElementById(id);};
 var C=MOSES;
 // ---- settings you fill in once (see 1-READ-ME-FIRST.txt) ----
@@ -347,6 +355,7 @@ map=L.map('map',{zoomControl:false,attributionControl:true});
 try{map.attributionControl.addAttribution('&copy; OpenStreetMap contributors');}catch(e){}
 map.setView(gps.fix?[gps.fix.lat,gps.fix.lng]:[26.2235,50.5876],15);
 map.on('click',function(e){onMapTap([e.latlng.lat,e.latlng.lng]);});
+if(!SIM)setTimeout(useTiles,0);
 layers.route=L.polyline([],{color:'#E8000B',weight:6,opacity:.9}).addTo(map);
 layers.done=L.polyline([],{color:'#E8000B',weight:6,opacity:.3}).addTo(map);
 layers.stop=L.circle([0,0],{radius:28,color:'#2eb6ff',weight:4,fill:false}).addTo(map);
@@ -395,9 +404,9 @@ if(!parts.length)return;
 var key=parts.map(function(pt){return pt.pts.length+'@'+pt.pts[0].map(function(v){return Math.round(v/0.003);}).join(',')+'@'+pt.r;}).join('|');
 if(key===streets.key||streets.loading)return;
 streets.loading=true;var q=streetQuery(parts);
-var tryAt=function(k){return FETCH(OVERPASS[k],{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}}).then(function(r){return r.json();}).catch(function(err){if(k+1<OVERPASS.length)return tryAt(k+1);throw err;});};
-tryAt(0).then(function(j){if(!j||!j.elements)throw new Error('no streets');drawStreets(j);streets.key=key;streets.loading=false;streets.fails=0;})
-.catch(function(){streets.loading=false;streets.fails++;if(streets.fails>=2)useTiles();else setTimeout(wantStreets,4000);});
+var tryAt=function(k){var ac=typeof AbortController!=='undefined'?new AbortController():null,tm=ac?setTimeout(function(){ac.abort();},9000):null;return FETCH(OVERPASS[k],{signal:ac?ac.signal:undefined,method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}}).then(function(r){if(tm)clearTimeout(tm);return r.json();}).catch(function(err){if(tm)clearTimeout(tm);if(k+1<OVERPASS.length)return tryAt(k+1);throw err;});};
+tryAt(0).then(function(j){if(!j||!j.elements||!j.elements.length)throw new Error('no streets');drawStreets(j);if(streets.tiles){streets.tiles.remove();streets.tiles=null;}streets.key=key;streets.loading=false;streets.fails=0;})
+.catch(function(){streets.loading=false;streets.fails++;useTiles();if(streets.fails<2)setTimeout(wantStreets,4000);});
 }
 function drawStreets(j){
 streets.layer.forEach(function(l){l.remove();});streets.layer=[];
@@ -406,9 +415,10 @@ j.elements.forEach(function(w){if(!w.geometry||w.geometry.length<2)return;var b=
 streets.layer.push(L.polyline(w.geometry.map(function(g){return [g.lat,g.lon];}),{className:b?'st st-big':'st',weight:b?10:6,interactive:false}).addTo(map));});
 ['done','route'].forEach(function(k){if(layers[k]&&layers[k].bringToFront)layers[k].bringToFront();});
 }
-function useTiles(){if(streets.tiles||!map)return;streets.tiles=L.tileLayer(TILES,{maxZoom:19}).addTo(map);if(streets.tiles.bringToBack)streets.tiles.bringToBack();}
+function useTiles(){if(streets.tiles||!map)return;streets.tiles=L.tileLayer(TILES,{maxZoom:19,className:'soft-tiles'}).addTo(map);if(streets.tiles.bringToBack)streets.tiles.bringToBack();}
 // ---- GPS ----
-function gpsLine(){if(gps.err)return gps.err;if(!gps.fix)return 'Waiting for GPS';return 'GPS within '+Math.round(gps.fix.acc)+' m';}
+function gpsLine(){if(gps.err)return gps.err;if(!gps.fix)return 'Waiting for GPS';return gps.fix.acc>50?'Weak GPS signal':'';}
+function lines(){var o=[];for(var i=0;i<arguments.length;i++)if(arguments[i])o.push(arguments[i]);return o.join('. ');}
 function startGps(){
 if(NO_GPS){gps.on=false;gps.err='';render();return;}
 if(!navigator.geolocation){gps.err='This phone cannot share its location';gps.on=false;render();return;}
@@ -509,10 +519,13 @@ if(map&&layers.me)layers.me.setLatLng(me||OFF);
 if(ROLE==='amb'){
 var s=demo?demoS():ambS,tr=demo?demo.trip:trip,rt=demo?demo.route:route;
 drawTrip(tr,rt,s);
-if(!tr)say(pickingPatient?'Tap the patient on the map':'Waiting for a call',(NO_GPS?'Pretend GPS':gpsLine())+(net?(net.http&&!net.reachable()?'. Meeting place not reachable':''):'. No live link here'));
-else if(!driving&&!demo)say('Route ready','Press Go. Streets: '+(tr.len/1000).toFixed(1)+' km, junctions: '+tr.junctions.length);
-else say(C.stage(tr,s),(Date.now()-reroutedAt<6000?'New route. ':'')+(ambOff?'You are off the route. ':'')+(NO_GPS?'Pretend GPS':gpsLine())+(net.http&&!net.reachable()?'. Meeting place not reachable':'. Drivers linked: '+liveDriverIds().length));
-$('goBtn').disabled=!tr||driving||!!demo;$('callBtn').disabled=driving||!!demo;$('endBtn').hidden=!tr;
+var linkLine=net?(net.http&&!net.reachable()?'Meeting place not reachable':''):'No live link here',gl=NO_GPS?'':gpsLine();
+if(!tr)say(pickingPatient?'Where is the patient?':'Waiting for a call',pickingPatient?'Tap the place on the map':lines(gl,linkLine));
+else if(!driving&&!demo)say('Route ready',(tr.len/1000).toFixed(1)+' km · '+tr.junctions.length+' junction'+(tr.junctions.length===1?'':'s'));
+else say(C.stage(tr,s),lines(Date.now()-reroutedAt<6000?'New route':'',ambOff?'You are off the route':'',gl,net&&net.http&&!net.reachable()?'Meeting place not reachable':'Drivers linked: '+liveDriverIds().length));
+var stA=!tr&&!pickingPatient,stB=!tr&&pickingPatient,stC=!!tr&&!driving&&!demo,stD=!!tr&&(driving||!!demo);
+$('callBtn').hidden=!(stA||stB);$('callBtn').classList.toggle('ghost',stB);$('goBtn').hidden=!stC;$('endBtn').hidden=!stD;$('cancelBtn').classList.toggle('ghost',!(stB||stC));
+
 }
 if(ROLE==='drv'){
 var tr2=demo?demo.trip:trip,rt2=demo?demo.route:route,s2=null,ins;
@@ -570,8 +583,8 @@ $('mTrips').addEventListener('click',function(){$('menu').hidden=true;showTrips(
 $('tripsClose').addEventListener('click',function(){$('trips').hidden=true;});
 $('tripsCopy').addEventListener('click',function(){var txt='MOSES trip record\n'+tripLines().map(function(x){return x.head+': '+x.body;}).join('\n');try{navigator.clipboard.writeText(txt);$('tripsCopy').textContent='Copied';setTimeout(function(){$('tripsCopy').textContent='Copy';},1500);}catch(e){}});
 $('pickDrv').addEventListener('click',function(){initAudio();setRole('drv');});
-$('callBtn').addEventListener('click',function(){if(driving)return;pickingPatient=true;render();});
-$('randBtn').addEventListener('click',function(){var h=here();if(!h){say('No location yet','Wait for GPS');return;}var a=Math.random()*Math.PI*2;ambCall(C.offset(h,Math.cos(a)*800,Math.sin(a)*800));});
+$('callBtn').addEventListener('click',function(){if(driving||trip)return;if(!here()){say('No location yet','Wait for GPS, or tap the map');return;}pickingPatient=true;render();});
+$('cancelBtn').addEventListener('click',function(){if(pickingPatient){pickingPatient=false;render();return;}if(trip&&!driving){trip=null;route=null;if(net&&tripId){net.writePos(tripId,{lat:0,lng:0,s:0,state:'ended'});}tripId=null;render();}});
 $('goBtn').addEventListener('click',function(){if(!trip)return;driving=true;ambS=0;lastPosWrite=0;tlogStart();pushPos();render();});
 $('endBtn').addEventListener('click',function(){tlogEnd();driving=false;trip=null;route=null;demo=null;if(net&&tripId){net.writePos(tripId,{lat:0,lng:0,s:0,state:'ended'});}tripId=null;render();});
 [].forEach.call($('laneBtns').children,function(b){b.addEventListener('click',function(){var l=b.getAttribute('data-l');laneManual=l==='auto'?null:l;[].forEach.call($('laneBtns').children,function(o){o.classList.toggle('on',o===b);});render();});});
