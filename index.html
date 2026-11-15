@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MOSES">
-<title>MOSES v107400</title>
+<title>MOSES v107500</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -277,15 +277,18 @@ return {role:'away',word:'You can go',sub:'The ambulance has passed',clip:'xgo'}
 }
 return {role:'none',word:'',sub:'No ambulance near you'};
 }
+// when more than one ambulance is near, the driver gets the most urgent word
+var URG={'Stop':6,'Stay still':5,'Go left':4,'Go right':4,'Make way':4,'Slow down':3,'Be ready':2,'You can go':1,'Thank you':1};
+function urgency(ins){return (ins&&ins.word&&URG[ins.word])||0;}
 function offset(p,dxm,dym){return fromXY(dxm,dym,p);}
-return {bearing:bearing,dist:dist,xy:xy,fromXY:fromXY,cumulative:cumulative,project:project,pointAt:pointAt,advance:advance,parseOsrm:parseOsrm,pickRoute:pickRoute,buildTrip:buildTrip,routeOf:routeOf,stage:stage,wave:wave,instruction:instruction,laneGuess:laneGuess,offset:offset,T:T};
+return {bearing:bearing,dist:dist,xy:xy,fromXY:fromXY,cumulative:cumulative,project:project,pointAt:pointAt,advance:advance,parseOsrm:parseOsrm,pickRoute:pickRoute,buildTrip:buildTrip,routeOf:routeOf,stage:stage,wave:wave,instruction:instruction,urgency:urgency,laneGuess:laneGuess,offset:offset,T:T};
 })();
 
 </script>
 <script>
 // ===== MOSES app: screens, map, GPS, the live link =====
 (function(){
-var APP_VERSION='v107400';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
+var APP_VERSION='v107500';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
 var $=function(id){return document.getElementById(id);};
 var C=MOSES;
 // ---- settings you fill in once (see 1-READ-ME-FIRST.txt) ----
@@ -295,7 +298,8 @@ var TILES='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 // ---- state ----
 var ROLE=null,net=null,map=null,layers={},gps={on:false,fix:null,err:'',watch:null},myId=null;
 var trip=null,route=null,tripId=null,ambS=0,ambOff=false,driving=false,posSeen=null,posAt=0,lastPosWrite=0,lastDrvWrite=0;
-var offSince=0,rerouting=false,reroutedAt=0,driversWatched=false,pickingPatient=false,laneManual=null,voiceOn=false,lastWord=null,demo=null,unsubTrip=null,unsubPos=null,drivers={};
+var offSince=0,rerouting=false,reroutedAt=0,driversWatched=false,pickingPatient=false,laneManual=null,voiceOn=false,lastWord=null,demo=null,drivers={};
+var live={},liveWatched=false,drvTrip=null,drvShown=null;
 function store(k,v){try{localStorage.setItem('moses_'+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var v=localStorage.getItem('moses_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
 myId=load('id')||('d'+Math.random().toString(36).slice(2,10));store('id',myId);
@@ -305,13 +309,14 @@ function here(){if(gps.fix)return [gps.fix.lat,gps.fix.lng];if(map&&map.getCente
 function makeNetHttp(){
 // the meeting place on the app's own site: /board. Writes go at once; reads come every 1.5 s.
 if(typeof fetch!=='function')return null;
-var URL='/board',crew=load('crew')||'',st={active:null,tripv:{},pos:{},drivers:{},off:0},cbs={active:[],trip:{},pos:{},drivers:[]},tripSeen={},fails=0,timer=null;
+var URL='/board',crew=load('crew')||'',st={active:null,tripv:{},pos:{},all:null,drivers:{},off:0},cbs={active:[],trip:{},pos:{},live:[],drivers:[]},tripSeen={},fails=0,timer=null;
 function call(body){if(body.op==='active'||body.op==='trip'||body.op==='pos')body.crew=crew;return fetch(URL,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw new Error('board '+r.status);return r.json();});}
 function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
 function take(o){if(!o)return;fails=0;st.off=(o.now||Date.now())-Date.now();
  if(!same(o.active,st.active)){st.active=o.active;cbs.active.forEach(function(f){f(st.active);});}
  var id;for(id in cbs.trip){if(o.tripv&&o.tripv[id]&&o.tripv[id]!==tripSeen[id]){tripSeen[id]=o.tripv[id];(function(id){call({op:'gettrip',id:id}).then(function(t){(cbs.trip[id]||[]).forEach(function(f){f(t&&t.trip);});}).catch(function(){});})(id);}}
  for(id in cbs.pos){if(!same(o.pos&&o.pos[id],st.pos[id])){st.pos[id]=o.pos&&o.pos[id];(cbs.pos[id]||[]).forEach(function(f){f(st.pos[id]||null);});}}
+ if(!same(o.pos||{},st.all)){st.all=o.pos||{};cbs.live.forEach(function(f){f(st.all);});}
  if(!same(o.drivers,st.drivers)){st.drivers=o.drivers||{};cbs.drivers.forEach(function(f){f(st.drivers);});}}
 function poll(){call({op:'read'}).then(take).catch(function(){fails++;if(fails===3){cbs.drivers.forEach(function(f){f({});});}});}
 function start(){if(!timer)timer=setInterval(poll,1500);poll();}
@@ -321,7 +326,8 @@ setActive:function(id){return call({op:'active',tripId:id}).then(take);},
 writeTrip:function(id,t){return call({op:'trip',id:id,trip:t}).then(take);},
 writePos:function(id,p){return call({op:'pos',id:id,pos:p}).then(take);},
 onActive:function(cb){cbs.active.push(cb);start();if(st.active)cb(st.active);},
-onTrip:function(id,cb){(cbs.trip[id]=cbs.trip[id]||[]).push(cb);tripSeen[id]=null;start();return function(){cbs.trip[id]=(cbs.trip[id]||[]).filter(function(f){return f!==cb;});};},
+onLive:function(cb){cbs.live.push(cb);start();if(st.all)cb(st.all);},
+onTrip:function(id,cb){(cbs.trip[id]=cbs.trip[id]||[]).push(cb);tripSeen[id]=null;start();return function(){var l=(cbs.trip[id]||[]).filter(function(f){return f!==cb;});if(l.length)cbs.trip[id]=l;else delete cbs.trip[id];};},
 onPos:function(id,cb){(cbs.pos[id]=cbs.pos[id]||[]).push(cb);start();if(st.pos[id])cb(st.pos[id]);return function(){cbs.pos[id]=(cbs.pos[id]||[]).filter(function(f){return f!==cb;});};},
 writeDriver:function(id,d){return call({op:'driver',id:id,d:d}).then(take);},
 serverNow:function(){return Date.now()+st.off;},
@@ -365,7 +371,7 @@ layers.me=L.circleMarker([0,0],{radius:7,color:'#fff',weight:2.5,fillColor:'#2eb
 layers.car=L.circle([0,0],{radius:14,color:'#c9b8ff',weight:3,fillColor:'#c9b8ff',fillOpacity:.3}).addTo(map);
 layers.hosp=L.marker([0,0],{icon:L.divIcon({className:'mk mh',html:'H',iconSize:[28,28]})}).addTo(map);
 layers.pat=L.marker([0,0],{icon:L.divIcon({className:'mk mp',html:'+',iconSize:[28,28]})}).addTo(map);
-layers.drivers=[];
+layers.drivers=[];layers.others=[];
 hideAll();
 }
 var OFF=[0,0];
@@ -397,7 +403,7 @@ function streetQuery(parts){return '[out:json][timeout:25];('+parts.map(function
 function wantStreets(){try{wantStreets2();}catch(e){streets.loading=false;}}
 function wantStreets2(){
 if(SIM||!map||typeof L==='undefined')return;
-var parts=[],tr=demo?demo.trip:trip,me=gps.fix?[gps.fix.lat,gps.fix.lng]:(gps.manual||null);
+var parts=[],tr=demo?demo.trip:(ROLE==='drv'?drvTrip:trip),me=gps.fix?[gps.fix.lat,gps.fix.lng]:(gps.manual||null);
 if(tr&&tr.coords&&tr.coords.length>1)parts.push({pts:thin(tr.coords,150),r:220});
 if(me)parts.push({pts:[me],r:tr?350:600});
 if(!parts.length)return;
@@ -485,15 +491,24 @@ if(ROLE==='amb'&&pickingPatient){ambCall(p);return;}
 if(ROLE==='drv'&&!gps.fix){gps.manual=p;if(net&&!demo){var pw=net.writeDriver(myId,{lat:p[0],lng:p[1],lane:laneManual||'auto'});if(pw&&pw.catch)pw.catch(function(){});}render();}
 }
 // ---- the driver: follows the live trip ----
+// ---- the driver follows every ambulance on the board, not only the newest ----
+function tripSig(t){return t.len+':'+t.coords.length+':'+t.coords[t.coords.length>>1].join(',');}
+function addLive(id){if(live[id])return live[id];var lv=live[id]={id:id,trip:null,route:null,pos:null,posAt:0,sig:'',unsub:null};
+lv.unsub=net.onTrip(id,function(t){if(live[id]!==lv)return;if(t&&t.coords&&t.coords.length>1){var sg=tripSig(t);if(sg!==lv.sig){var was=drvShown===lv;lv.sig=sg;if(!t.junctions)t.junctions=[];lv.trip=t;lv.route=C.routeOf(t);render();
+if(was&&ROLE==='drv'&&map&&map.fitBounds)map.fitBounds(t.coords,{padding:[30,30]});wantStreets();return;}}render();});
+return lv;}
+function dropLive(id){var lv=live[id];if(!lv)return;delete live[id];if(drvShown===lv)drvShown=null;if(lv.unsub)lv.unsub();}
+function setPos(lv,p){if(!p)return;var ch=!lv.pos||JSON.stringify(lv.pos)!==JSON.stringify(p);if(ch)lv.pos=p;if(ch||typeof p.t!=='number')lv.posAt=Date.now();}
+function syncLive(all){var id;for(id in all){var p=all[id];if(!p||p.state==='ended'){dropLive(id);continue;}setPos(addLive(id),p);}
+for(id in live)if(!(id in all))dropLive(id);}
+function freshPos(lv){var p=lv.pos;if(!p)return false;if(typeof p.t==='number'&&net&&net.serverNow)return net.serverNow()-p.t<10000;return Date.now()-lv.posAt<10000;}
 function watchLive(){
-if(!net)return;
-net.onActive(function(a){
-var id=a&&a.tripId;if(!id||id===tripId)return;
-tripId=id;if(unsubTrip)unsubTrip();if(unsubPos)unsubPos();
-trip=null;route=null;posSeen=null;
-unsubTrip=net.onTrip(id,function(t){if(t&&t.coords){if(!t.junctions)t.junctions=[];trip=t;route=C.routeOf(t);if(map&&map.fitBounds&&ROLE==='drv')map.fitBounds(t.coords,{padding:[30,30]});wantStreets();}render();});
-unsubPos=net.onPos(id,function(p){if(p){posSeen=p;posAt=Date.now();}render();});
-});
+if(!net||liveWatched)return;liveWatched=true;
+if(net.onLive){net.onLive(function(all){syncLive(all||{});render();});return;}
+// a link that can only follow the newest ambulance
+var cur=null,un=null;
+net.onActive(function(a){var id=a&&a.tripId;if(!id||id===cur)return;if(cur)dropLive(cur);if(un)un();cur=id;var lv=addLive(id);
+un=net.onPos(id,function(p){if(live[id]!==lv)return;if(p&&p.state==='ended')lv.pos=p;else setPos(lv,p);render();});});
 }
 // ---- demo on one phone: a virtual ambulance drives through your street ----
 function startDemo(){
@@ -528,14 +543,25 @@ $('callBtn').hidden=!(stA||stB);$('callBtn').classList.toggle('ghost',stB);$('go
 
 }
 if(ROLE==='drv'){
-var tr2=demo?demo.trip:trip,rt2=demo?demo.route:route,s2=null,ins;
-if(demo)s2=demoS();else if(posSeen&&typeof posSeen.s==='number'&&posSeen.state==='driving')s2=posSeen.s;
+var tr2=null,rt2=null,s2=null,ins,lost=false,nearN=0,others=[],hd=gps.fix?headingNow():null,pick=null;
+if(demo){tr2=demo.trip;rt2=demo.route;s2=demoS();}
+else{Object.keys(live).forEach(function(id){var lv=live[id];if(!lv.trip||!lv.route)return;
+var drv=!!lv.pos&&typeof lv.pos.s==='number'&&lv.pos.state==='driving',fr=drv&&freshPos(lv),c={lv:lv,s:drv?lv.pos.s:null,fresh:fr,lost:drv&&!fr,ins:null,u:0,d:1e9};
+if(me){if(fr){c.ins=C.instruction(lv.trip,lv.route,lv.pos.s,me,laneManual,hd);c.u=C.urgency(c.ins);}c.d=C.dist(me,fr?C.pointAt(lv.route,lv.pos.s):lv.trip.coords[0]);}
+if(c.u>0)nearN++;if(fr)others.push(c);
+if(!pick||c.u>pick.u||(c.u===pick.u&&(c.fresh?1:0)>(pick.fresh?1:0))||(c.u===pick.u&&c.fresh===pick.fresh&&c.d<pick.d))pick=c;});
+if(pick){tr2=pick.lv.trip;rt2=pick.lv.route;s2=pick.s;lost=pick.lost;
+if(drvShown!==pick.lv){var hadShown=!!drvShown;drvShown=pick.lv;if(map&&map.fitBounds&&(pick.u>0||!hadShown))map.fitBounds(tr2.coords,{padding:[30,30]});}}
+else drvShown=null;}
+drvTrip=tr2;
 drawTrip(tr2,rt2,s2===null?-1:s2);
+if(map&&layers.others){layers.others.forEach(function(m){m.remove();});layers.others=[];others.forEach(function(c){if(c===pick)return;layers.others.push(L.circleMarker(C.pointAt(c.lv.route,c.s),{radius:7,color:'#fff',weight:2.5,fillColor:'#E8000B',fillOpacity:1}).addTo(map));});}
 if(map&&layers.car)layers.car.setLatLng(me||OFF);
 if(!me)ins={role:'none',word:'Where is your car?',sub:NO_GPS?'Tap your street on the map':(gps.err?gps.err+'. Or tap the map':'Waiting for GPS. Or tap the map')};
 else if(!tr2||s2===null)ins={role:'none',word:'',sub:net||demo?(net&&net.http&&!net.reachable()&&!demo?'Meeting place not reachable':'No ambulance near you'):'No live link here. Use "Try it on this phone" in the menu'};
-else if(!demo&&Date.now()-posAt>10000)ins={role:'none',word:'',sub:'Ambulance signal lost'};
-else ins=C.instruction(tr2,rt2,s2,me,laneManual,gps.fix?headingNow():null);
+else if(!demo&&lost)ins={role:'none',word:'',sub:'Ambulance signal lost'};
+else if(demo)ins=C.instruction(tr2,rt2,s2,me,laneManual,hd);
+else{ins=pick.ins;if(nearN>1)ins={role:ins.role,word:ins.word,sub:ins.sub+'. Another ambulance is near',clip:ins.clip,lane:ins.lane};}
 say(ins.word,ins.sub);
 $('roleTag').textContent=ins.role==='way'?'You are in the way':ins.role==='away'?'Stay away':ins.role==='oncoming'?'Ambulance ahead':'';
 var LN={L:'left',M:'middle',R:'right'};$('laneNow').textContent=laneManual?('Lane: '+LN[laneManual]):'Lane: not set';
@@ -605,7 +631,7 @@ setInterval(function(){if(ROLE==='drv'&&net&&!demo&&Date.now()-lastDrvWrite>1000
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('./sw.js');}catch(e){}}
 var saved=load('role');if(saved==='drv'||(saved==='amb'&&load('crew')))setRole(saved);
 if(!load('intro'))showIntro();
-if(location.hash==='#test'){window.__app={state:function(){return {ROLE:ROLE,trip:trip,route:route,tripId:tripId,ambS:ambS,driving:driving,posSeen:posSeen,demo:demo,laneManual:laneManual,gps:gps,net:!!net};},setRole:setRole,ambCall:ambCall,tap:onMapTap,startDemo:startDemo,trips:function(){return load('trips')||[];}};}
+if(location.hash==='#test'){window.__app={state:function(){return {ROLE:ROLE,trip:trip,route:route,tripId:tripId,ambS:ambS,driving:driving,posSeen:posSeen,live:Object.keys(live),shown:drvTrip,demo:demo,laneManual:laneManual,gps:gps,net:!!net};},setRole:setRole,ambCall:ambCall,tap:onMapTap,startDemo:startDemo,trips:function(){return load('trips')||[];}};}
 })();
 
 </script>
