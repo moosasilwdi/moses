@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MOSES">
-<title>MOSES v107300</title>
+<title>MOSES v107400</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -103,9 +103,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 .bigbtn.primary{background:#1B64D6;border-color:#1B64D6;color:#fff}
 .linkbtn{min-height:36px;padding:0 18px;border:0;background:none;color:var(--soft);font-family:inherit;font-weight:600;font-size:15px;cursor:pointer}
 .ghost{visibility:hidden}
-.soft-tiles{filter:grayscale(1) contrast(.9);opacity:.55}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .soft-tiles{filter:grayscale(1) invert(1) contrast(.8);opacity:.35}}
-:root[data-theme="dark"] .soft-tiles{filter:grayscale(1) invert(1) contrast(.8);opacity:.35}
+.soft-tiles{filter:grayscale(1) brightness(.7) contrast(2.5);opacity:1}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .soft-tiles{filter:grayscale(1) brightness(.46) contrast(4);opacity:1}}
+:root[data-theme="dark"] .soft-tiles{filter:grayscale(1) brightness(.46) contrast(4);opacity:1}
 </style>
 </head>
 <body data-role="none">
@@ -285,7 +285,7 @@ return {bearing:bearing,dist:dist,xy:xy,fromXY:fromXY,cumulative:cumulative,proj
 <script>
 // ===== MOSES app: screens, map, GPS, the live link =====
 (function(){
-var APP_VERSION='v107300';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
+var APP_VERSION='v107400';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
 var $=function(id){return document.getElementById(id);};
 var C=MOSES;
 // ---- settings you fill in once (see 1-READ-ME-FIRST.txt) ----
@@ -415,7 +415,7 @@ j.elements.forEach(function(w){if(!w.geometry||w.geometry.length<2)return;var b=
 streets.layer.push(L.polyline(w.geometry.map(function(g){return [g.lat,g.lon];}),{className:b?'st st-big':'st',weight:b?10:6,interactive:false}).addTo(map));});
 ['done','route'].forEach(function(k){if(layers[k]&&layers[k].bringToFront)layers[k].bringToFront();});
 }
-function useTiles(){if(streets.tiles||!map)return;streets.tiles=L.tileLayer(TILES,{maxZoom:19,className:'soft-tiles'}).addTo(map);if(streets.tiles.bringToBack)streets.tiles.bringToBack();}
+function useTiles(){if(streets.tiles||!map)return;var fine=(window.devicePixelRatio||1)>1.4;streets.tiles=L.tileLayer(TILES,{maxZoom:19,maxNativeZoom:fine?18:19,tileSize:fine?128:256,zoomOffset:fine?1:0,className:'soft-tiles'}).addTo(map);if(streets.tiles.bringToBack)streets.tiles.bringToBack();}
 // ---- GPS ----
 function gpsLine(){if(gps.err)return gps.err;if(!gps.fix)return 'Waiting for GPS';return gps.fix.acc>50?'Weak GPS signal':'';}
 function lines(){var o=[];for(var i=0;i<arguments.length;i++)if(arguments[i])o.push(arguments[i]);return o.join('. ');}
