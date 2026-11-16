@@ -20,11 +20,30 @@ export default async (req)=>{
   const headers={'content-type':'application/json','cache-control':'no-store','access-control-allow-origin':'*','access-control-allow-methods':'POST,GET,OPTIONS','access-control-allow-headers':'content-type'};
   if(req.method==='OPTIONS')return new Response('',{headers});
   let body={};if(req.method==='POST'){try{body=await req.json();}catch(e){body={};}}
-  const store=getStore('moses');
-  let board=null;try{board=await store.get('board',{type:'json'});}catch(e){board=null;}
   let code='';try{code=(globalThis.Netlify&&Netlify.env&&Netlify.env.get('MOSES_CREW_CODE'))||process.env.MOSES_CREW_CODE||'';}catch(e){code='';}
-  const r=apply(board,body,Date.now(),code);
-  if(r.changed)await store.setJSON('board',r.board);
+  let r;
+  // 'strong' = every read sees the newest board, not a copy up to a minute old
+  try{r=await run(getStore({name:'moses',consistency:'strong'}),body,code,Date.now);}
+  catch(e){if(e&&e.name==='BlobsConsistencyError')r=await run(getStore('moses'),body,code,Date.now);else r={out:{now:Date.now(),error:'store'},status:503};}
+  r.out.v='v107700';
   return new Response(JSON.stringify(r.out),{status:r.status||200,headers});
 };
+// v107700: safe writing. Read the board, change it, and write it back only if nobody else wrote in between; if somebody did, do it again.
+const pause=(i)=>new Promise(r=>setTimeout(r,15*(i+1)+Math.floor(Math.random()*40)));
+export async function run(store,body,code,clock){
+  const TRIES=10;
+  for(let i=0;i<TRIES;i++){
+    let cur;
+    try{cur=await store.getWithMetadata('board',{type:'json'});}catch(e){if(e&&e.name==='BlobsConsistencyError')throw e;await pause(i);continue;}
+    const board=cur?cur.data:null,etag=cur?cur.etag:null;
+    const r=apply(board,body,clock(),code);
+    if(!r.changed)return r;
+    let w=null;
+    try{w=await store.setJSON('board',r.board,cur?(etag?{onlyIfMatch:etag}:{}):{onlyIfNew:true});}catch(e){w=null;}
+    // an empty tag back means the write did not really happen (known fault of the storage library)
+    if(w&&w.modified&&w.etag)return r;
+    await pause(i);
+  }
+  return {out:{now:clock(),error:'busy'},status:503};
+}
 export const config={path:'/board'};
