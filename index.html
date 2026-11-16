@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MOSES">
-<title>MOSES v107500</title>
+<title>MOSES v107600</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -64,7 +64,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 .pill{min-width:92px;min-height:48px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-family:inherit;font-weight:600;font-size:16px;cursor:pointer}
 .pill.on,.pill.primary{background:#1B64D6;border-color:#1B64D6;color:#fff}
 .pill:disabled{opacity:.45;cursor:default}
-#laneNow{font-size:13px;color:var(--soft);letter-spacing:.06em;min-height:16px}
 .foot{font-size:13px;margin-top:2px}
 #ver{font-size:11px;color:var(--soft);letter-spacing:.06em}
 #menu{position:absolute;left:14px;top:62px;z-index:7;background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 14px 40px rgba(24,18,50,.25);padding:6px;min-width:220px}
@@ -121,7 +120,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 <section id="app" hidden>
 <div class="topbar">
 <button class="glass" id="menuBtn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-<div id="menu" hidden><button id="mVoice">Voice: off</button><button id="mGps">Real location: on</button><button id="mDemo">Try it on this phone</button><button id="mTrips">Trip record</button><button id="mHow">How it works</button><button id="mInfo">About</button><button id="mAbout">What is real</button><button id="mRole">Change role</button></div>
+<div id="menu" hidden><button id="mVoice">Voice: on</button><button id="mGps">Real location: on</button><button id="mDemo">Try it on this phone</button><button id="mTrips">Trip record</button><button id="mHow">How it works</button><button id="mInfo">About</button><button id="mAbout">What is real</button><button id="mRole">Change role</button></div>
 <div id="word" aria-live="polite"></div>
 <div id="sub"></div>
 <div id="roleTag"></div>
@@ -129,7 +128,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 <div id="map"></div>
 <div class="bottombar">
 <div id="ambBar" hidden><button class="bigbtn primary" id="callBtn">New call</button><button class="bigbtn primary" id="goBtn" hidden>Go</button><button class="bigbtn" id="endBtn" hidden>End</button><button class="linkbtn ghost" id="cancelBtn">Cancel</button></div>
-<div id="drvBar" hidden><div class="row" id="laneBtns"><button class="pill" data-l="L">Left</button><button class="pill" data-l="M">Middle</button><button class="pill" data-l="R">Right</button><button class="pill on" data-l="auto">Not set</button></div><div id="laneNow"></div></div>
 <div class="brand foot">MOSES</div>
 <div id="ver" class="verline"><span class="vnum"></span> · Built with Claude</div>
 </div>
@@ -171,7 +169,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 <h3>WHAT IS REAL</h3>
 <p><b>Real:</b> the map and streets (OpenStreetMap), the routes (OSRM), your phone's location, and the live link between phones (the MOSES board on Netlify).</p>
 <p><b>Chosen by the app:</b> the way with the fewest junctions. The ambulance is always moved forward along it, never back.</p>
-<p><b>A guess:</b> your lane, from your GPS. Correct it with the lane buttons. GPS is 5 to 10 m off in the open and worse between tall buildings.</p>
+<p><b>Not known:</b> your lane. So MOSES says all three: left lane go left, middle go right, right lane go right. GPS is 5 to 10 m off in the open and worse between tall buildings.</p>
 <p><b>Not yet:</b> traffic lights, real traffic data, cars without the app.</p>
 <button class="pill" id="aboutClose">Close</button>
 </div>
@@ -260,7 +258,7 @@ if(g>T.WAY_MAX)return {role:'none',word:'',sub:'No ambulance near you'};
 if(g>T.WAY_READY)return {role:'way',word:'Be ready',sub:'Ambulance behind you',lane:ln};
 if(g>T.WAY_STILL){if(ln==='L')return {role:'way',word:'Go left',sub:'Ambulance behind you',clip:'ifleft',lane:ln};
 if(ln==='R'||ln==='M')return {role:'way',word:'Go right',sub:'Ambulance behind you',clip:ln==='R'?'ifright':'ifmiddle',lane:ln};
-return {role:'way',word:'Make way',sub:'Left lane: go left. Other lanes: go right',clip:['ifleft','ifright','ifmiddle'],lane:null};}
+return {role:'way',word:'Make way',sub:'Left lane: go left. Other lanes: go right',clip:['ifleft','ifmiddle','ifright'],lane:null};}
 if(g>-T.WAY_STILL)return {role:'way',word:'Stay still',sub:'Ambulance passing',lane:ln};
 return {role:'way',word:'Thank you',sub:'You can go back',lane:ln};
 }
@@ -288,7 +286,7 @@ return {bearing:bearing,dist:dist,xy:xy,fromXY:fromXY,cumulative:cumulative,proj
 <script>
 // ===== MOSES app: screens, map, GPS, the live link =====
 (function(){
-var APP_VERSION='v107500';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
+var APP_VERSION='v107600';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
 var $=function(id){return document.getElementById(id);};
 var C=MOSES;
 // ---- settings you fill in once (see 1-READ-ME-FIRST.txt) ----
@@ -298,7 +296,7 @@ var TILES='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 // ---- state ----
 var ROLE=null,net=null,map=null,layers={},gps={on:false,fix:null,err:'',watch:null},myId=null;
 var trip=null,route=null,tripId=null,ambS=0,ambOff=false,driving=false,posSeen=null,posAt=0,lastPosWrite=0,lastDrvWrite=0;
-var offSince=0,rerouting=false,reroutedAt=0,driversWatched=false,pickingPatient=false,laneManual=null,voiceOn=false,lastWord=null,demo=null,drivers={};
+var offSince=0,rerouting=false,reroutedAt=0,driversWatched=false,pickingPatient=false,voiceOn=true,lastWord=null,demo=null,drivers={};
 var live={},liveWatched=false,drvTrip=null,drvShown=null;
 function store(k,v){try{localStorage.setItem('moses_'+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var v=localStorage.getItem('moses_'+k);return v?JSON.parse(v):null;}catch(e){return null;}}
@@ -451,7 +449,7 @@ pushPos();}
 if(ROLE==='drv'&&net&&!demo&&Date.now()-lastDrvWrite>2000)writeDrv();
 render();
 }
-function writeDrv(){var p=gps.fix?[gps.fix.lat,gps.fix.lng]:gps.manual;if(!net||!p)return;lastDrvWrite=Date.now();var pw=net.writeDriver(myId,{lat:p[0],lng:p[1],lane:laneManual||'auto'});if(pw&&pw.catch)pw.catch(function(){});}
+function writeDrv(){var p=gps.fix?[gps.fix.lat,gps.fix.lng]:gps.manual;if(!net||!p)return;lastDrvWrite=Date.now();var pw=net.writeDriver(myId,{lat:p[0],lng:p[1],lane:'auto'});if(pw&&pw.catch)pw.catch(function(){});}
 function pushPos(){if(!net||!tripId)return;var now=Date.now();if(now-lastPosWrite<1000)return;lastPosWrite=now;var p=C.pointAt(route,ambS);var pr=net.writePos(tripId,{lat:p[0],lng:p[1],s:+ambS.toFixed(1),state:driving?'driving':'ready'});if(pr&&pr.catch)pr.catch(function(){});}
 // ---- a new route when the ambulance leaves its route ----
 function reroute(){
@@ -488,7 +486,7 @@ wantStreets();render();
 }
 function onMapTap(p){
 if(ROLE==='amb'&&pickingPatient){ambCall(p);return;}
-if(ROLE==='drv'&&!gps.fix){gps.manual=p;if(net&&!demo){var pw=net.writeDriver(myId,{lat:p[0],lng:p[1],lane:laneManual||'auto'});if(pw&&pw.catch)pw.catch(function(){});}render();}
+if(ROLE==='drv'&&!gps.fix){gps.manual=p;if(net&&!demo){var pw=net.writeDriver(myId,{lat:p[0],lng:p[1],lane:'auto'});if(pw&&pw.catch)pw.catch(function(){});}render();}
 }
 // ---- the driver: follows the live trip ----
 // ---- the driver follows every ambulance on the board, not only the newest ----
@@ -524,8 +522,18 @@ function demoS(){if(!demo)return 0;return Math.min(demo.trip.len,(Date.now()-dem
 // ---- voice ----
 var AUD=window.MOSES_AUDIO||{},AC=window.AudioContext||window.webkitAudioContext,actx=null,bufs={};
 function initAudio(){if(!AC||actx)return;try{actx=new AC();}catch(e){actx=null;return;}Object.keys(AUD).forEach(function(n){try{var bin=atob(AUD[n]),u=new Uint8Array(bin.length);for(var j=0;j<bin.length;j++)u[j]=bin.charCodeAt(j);actx.decodeAudioData(u.buffer,function(b){bufs[n]=b;},function(){});}catch(e){}});}
-function play(n){if(Array.isArray(n)){var q=n.slice(),next=function(){var k=q.shift();if(!k||!voiceOn||!actx||!bufs[k])return;try{if(actx.state!=='running')actx.resume();var src=actx.createBufferSource();src.buffer=bufs[k];src.connect(actx.destination);src.onended=next;src.start(0);}catch(e){}};next();return;}
-if(!voiceOn||!actx||!bufs[n])return;try{if(actx.state!=='running')actx.resume();var s=actx.createBufferSource();s.buffer=bufs[n];s.connect(actx.destination);s.start(0);}catch(e){}}
+// one touch anywhere lets the phone speak (browser rule); a driver who comes back lands on his screen without a tap
+function wakeAudio(){initAudio();try{if(actx&&actx.state!=='running'){var p=actx.resume();if(p&&p.catch)p.catch(function(){});}}catch(e){}}
+var vTok=0,vSrc=null;
+// stop what is being said now
+function hush(){vTok++;if(vSrc){var s=vSrc;vSrc=null;try{s.onended=null;s.stop(0);}catch(e){}}}
+// say one clip, or a list one after another; a new word always stops the old one
+function play(n){hush();if(!voiceOn||!actx)return;var q=Array.isArray(n)?n.slice():[n],tok=vTok,t0=Date.now();
+function next(){if(tok!==vTok)return;var k=q.shift();while(k&&!bufs[k])k=q.shift();if(!k)return;
+try{var s=actx.createBufferSource();s.buffer=bufs[k];s.connect(actx.destination);s.onended=function(){if(vSrc===s)vSrc=null;next();};vSrc=s;s.start(0);}catch(e){vSrc=null;}}
+if(actx.state==='running'){next();return;}
+// the phone is still silent: ask it to wake, and speak only if it wakes at once - never old words later
+try{var p=actx.resume();if(p&&p.then)p.then(function(){if(Date.now()-t0<1500)next();},function(){});}catch(e){}}
 // ---- render ----
 function render(){
 if(!ROLE)return;
@@ -547,7 +555,7 @@ var tr2=null,rt2=null,s2=null,ins,lost=false,nearN=0,others=[],hd=gps.fix?headin
 if(demo){tr2=demo.trip;rt2=demo.route;s2=demoS();}
 else{Object.keys(live).forEach(function(id){var lv=live[id];if(!lv.trip||!lv.route)return;
 var drv=!!lv.pos&&typeof lv.pos.s==='number'&&lv.pos.state==='driving',fr=drv&&freshPos(lv),c={lv:lv,s:drv?lv.pos.s:null,fresh:fr,lost:drv&&!fr,ins:null,u:0,d:1e9};
-if(me){if(fr){c.ins=C.instruction(lv.trip,lv.route,lv.pos.s,me,laneManual,hd);c.u=C.urgency(c.ins);}c.d=C.dist(me,fr?C.pointAt(lv.route,lv.pos.s):lv.trip.coords[0]);}
+if(me){if(fr){c.ins=C.instruction(lv.trip,lv.route,lv.pos.s,me,null,hd);c.u=C.urgency(c.ins);}c.d=C.dist(me,fr?C.pointAt(lv.route,lv.pos.s):lv.trip.coords[0]);}
 if(c.u>0)nearN++;if(fr)others.push(c);
 if(!pick||c.u>pick.u||(c.u===pick.u&&(c.fresh?1:0)>(pick.fresh?1:0))||(c.u===pick.u&&c.fresh===pick.fresh&&c.d<pick.d))pick=c;});
 if(pick){tr2=pick.lv.trip;rt2=pick.lv.route;s2=pick.s;lost=pick.lost;
@@ -560,12 +568,11 @@ if(map&&layers.car)layers.car.setLatLng(me||OFF);
 if(!me)ins={role:'none',word:'Where is your car?',sub:NO_GPS?'Tap your street on the map':(gps.err?gps.err+'. Or tap the map':'Waiting for GPS. Or tap the map')};
 else if(!tr2||s2===null)ins={role:'none',word:'',sub:net||demo?(net&&net.http&&!net.reachable()&&!demo?'Meeting place not reachable':'No ambulance near you'):'No live link here. Use "Try it on this phone" in the menu'};
 else if(!demo&&lost)ins={role:'none',word:'',sub:'Ambulance signal lost'};
-else if(demo)ins=C.instruction(tr2,rt2,s2,me,laneManual,hd);
+else if(demo)ins=C.instruction(tr2,rt2,s2,me,null,hd);
 else{ins=pick.ins;if(nearN>1)ins={role:ins.role,word:ins.word,sub:ins.sub+'. Another ambulance is near',clip:ins.clip,lane:ins.lane};}
 say(ins.word,ins.sub);
 $('roleTag').textContent=ins.role==='way'?'You are in the way':ins.role==='away'?'Stay away':ins.role==='oncoming'?'Ambulance ahead':'';
-var LN={L:'left',M:'middle',R:'right'};$('laneNow').textContent=laneManual?('Lane: '+LN[laneManual]):'Lane: not set';
-if(ins.word!==lastWord){lastWord=ins.word;if(ins.clip)play(ins.clip);}
+if(ins.word!==lastWord){lastWord=ins.word;if(ins.clip)play(ins.clip);else hush();}
 document.body.setAttribute('data-ins',ins.role);
 }
 }
@@ -577,7 +584,7 @@ function setRole(r){keepAwake();
 ROLE=r;store('role',r);document.body.setAttribute('data-role',r);
 $('chooser').hidden=true;$('app').hidden=false;
 mkMap();if(map&&map.invalidateSize)setTimeout(function(){map.invalidateSize();},50);
-$('ambBar').hidden=r!=='amb';$('drvBar').hidden=r!=='drv';
+$('ambBar').hidden=r!=='amb';
 if(!gps.on)startGps();
 if(r==='drv')watchLive();
 if(net&&!driversWatched){driversWatched=true;net.onDrivers(function(d){drivers=d||{};drawDrivers();render();});}
@@ -613,12 +620,11 @@ $('callBtn').addEventListener('click',function(){if(driving||trip)return;if(!her
 $('cancelBtn').addEventListener('click',function(){if(pickingPatient){pickingPatient=false;render();return;}if(trip&&!driving){trip=null;route=null;if(net&&tripId){net.writePos(tripId,{lat:0,lng:0,s:0,state:'ended'});}tripId=null;render();}});
 $('goBtn').addEventListener('click',function(){if(!trip)return;driving=true;ambS=0;lastPosWrite=0;tlogStart();pushPos();render();});
 $('endBtn').addEventListener('click',function(){tlogEnd();driving=false;trip=null;route=null;demo=null;if(net&&tripId){net.writePos(tripId,{lat:0,lng:0,s:0,state:'ended'});}tripId=null;render();});
-[].forEach.call($('laneBtns').children,function(b){b.addEventListener('click',function(){var l=b.getAttribute('data-l');laneManual=l==='auto'?null:l;[].forEach.call($('laneBtns').children,function(o){o.classList.toggle('on',o===b);});render();});});
 $('menuBtn').addEventListener('click',function(){$('menu').hidden=!$('menu').hidden;});
-$('mVoice').addEventListener('click',function(){initAudio();voiceOn=!voiceOn;$('mVoice').textContent=voiceOn?'Voice: on':'Voice: off';$('menu').hidden=true;});
+$('mVoice').addEventListener('click',function(){wakeAudio();voiceOn=!voiceOn;if(!voiceOn)hush();$('mVoice').textContent=voiceOn?'Voice: on':'Voice: off';$('menu').hidden=true;});
 $('mGps').addEventListener('click',function(){if(gps.on)stopGps();else startGps();$('mGps').textContent=gps.on?'Real location: on':'Real location: off';$('menu').hidden=true;});
 $('mDemo').addEventListener('click',function(){$('menu').hidden=true;if(ROLE!=='drv'){setRole('drv');}startDemo();});
-$('mRole').addEventListener('click',function(){$('menu').hidden=true;ROLE=null;store('role',null);demo=null;$('app').hidden=true;$('chooser').hidden=false;});
+$('mRole').addEventListener('click',function(){$('menu').hidden=true;hush();lastWord=null;ROLE=null;store('role',null);demo=null;$('app').hidden=true;$('chooser').hidden=false;});
 $('mAbout').addEventListener('click',function(){$('menu').hidden=true;$('about').hidden=false;});
 $('aboutClose').addEventListener('click',function(){$('about').hidden=true;});
 $('mInfo').addEventListener('click',function(){$('menu').hidden=true;$('aboutApp').hidden=false;});
@@ -630,8 +636,10 @@ if(!net)$('setup').hidden=false;
 setInterval(function(){if(ROLE==='drv'&&net&&!demo&&Date.now()-lastDrvWrite>10000)writeDrv();if(SIM&&ROLE==='amb'&&driving&&trip&&!demo){ambS=Math.min(trip.len,ambS+12);ambOff=false;lastPosWrite=0;}if(ROLE==='amb'&&driving&&net&&!demo)pushPos();tlogTick();render();},1000);
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('./sw.js');}catch(e){}}
 var saved=load('role');if(saved==='drv'||(saved==='amb'&&load('crew')))setRole(saved);
+['touchend','pointerup','mousedown','click','keydown'].forEach(function(ev){document.addEventListener(ev,function(){if(ROLE==='drv')wakeAudio();},true);});
+if(saved==='drv')setTimeout(function(){if(ROLE==='drv')initAudio();},1200);
 if(!load('intro'))showIntro();
-if(location.hash==='#test'){window.__app={state:function(){return {ROLE:ROLE,trip:trip,route:route,tripId:tripId,ambS:ambS,driving:driving,posSeen:posSeen,live:Object.keys(live),shown:drvTrip,demo:demo,laneManual:laneManual,gps:gps,net:!!net};},setRole:setRole,ambCall:ambCall,tap:onMapTap,startDemo:startDemo,trips:function(){return load('trips')||[];}};}
+if(location.hash==='#test'){window.__app={state:function(){return {ROLE:ROLE,trip:trip,route:route,tripId:tripId,ambS:ambS,driving:driving,posSeen:posSeen,live:Object.keys(live),shown:drvTrip,demo:demo,voiceOn:voiceOn,gps:gps,net:!!net};},setRole:setRole,ambCall:ambCall,tap:onMapTap,startDemo:startDemo,trips:function(){return load('trips')||[];}};}
 })();
 
 </script>
