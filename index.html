@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MOSES">
-<title>MOSES v107700</title>
+<title>MOSES v107800</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -103,8 +103,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 -apple-system
 .linkbtn{min-height:36px;padding:0 18px;border:0;background:none;color:var(--soft);font-family:inherit;font-weight:600;font-size:15px;cursor:pointer}
 .ghost{visibility:hidden}
 .soft-tiles{filter:grayscale(1) brightness(.7) contrast(2.5);opacity:1}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .soft-tiles{filter:grayscale(1) brightness(.46) contrast(4);opacity:1}}
-:root[data-theme="dark"] .soft-tiles{filter:grayscale(1) brightness(.46) contrast(4);opacity:1}
 </style>
 </head>
 <body data-role="none">
@@ -286,7 +284,7 @@ return {bearing:bearing,dist:dist,xy:xy,fromXY:fromXY,cumulative:cumulative,proj
 <script>
 // ===== MOSES app: screens, map, GPS, the live link =====
 (function(){
-var APP_VERSION='v107700';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
+var APP_VERSION='v107800';var SIM=!!window.MOSES_SIM,NO_GPS=!!window.MOSES_NO_GPS,FETCH=window.MOSES_FETCH||function(u,o){return fetch(u,o);};
 var $=function(id){return document.getElementById(id);};
 var C=MOSES;
 // ---- settings you fill in once (see 1-READ-ME-FIRST.txt) ----
